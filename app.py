@@ -22,6 +22,12 @@ from module.ip_adapter.resampler import Resampler
 from module.aggregator import Aggregator
 from pipelines.sdxl_instantir import InstantIRPipeline, LCM_LORA_MODULES, PREVIEWER_LORA_MODULES
 
+from huggingface_hub import hf_hub_download
+
+hf_hub_download(repo_id="InstantX/InstantIR", filename="adapter.pt", local_dir="./checkpoints")
+hf_hub_download(repo_id="InstantX/InstantIR", filename="aggregator.pt", local_dir="./checkpoints")
+hf_hub_download(repo_id="InstantX/InstantIR", filename="previewer_lora_weights.bin", local_dir="./checkpoints")
+
 
 transform = transforms.Compose([
     transforms.Resize(1024, interpolation=transforms.InterpolationMode.BILINEAR),
@@ -66,7 +72,7 @@ image_proj_model = Resampler(
 init_ip_adapter_in_unet(
     unet,
     image_proj_model,
-    "InstantX/InstantIR/adapter.pt",
+    "checkpoints/adapter.pt",
     adapter_tokens=64,
 )
 print("Initializing InstantIR...")
@@ -77,7 +83,7 @@ pipe = InstantIRPipeline(
 
 # Add Previewer LoRA.
 lora_state_dict, alpha_dict = StableDiffusionXLPipeline.lora_state_dict(
-    "InstantX/InstantIR/previewer_lora_weights.bin",
+    "checkpoints/previewer_lora_weights.bin",
     # weight_name="previewer_lora_weights.bin",
 
 )
@@ -145,7 +151,7 @@ lcm_scheduler = LCMSingleStepScheduler.from_config(pipe.scheduler.config)
 # Load weights.
 print("Loading checkpoint...")
 aggregator_state_dict = torch.load(
-    "InstantX/InstantIR/aggregator.pt",
+    "checkpoints/aggregator.pt",
     map_location="cpu"
 )
 aggregator.load_state_dict(aggregator_state_dict, strict=True)
