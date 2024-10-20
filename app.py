@@ -24,9 +24,12 @@ from pipelines.sdxl_instantir import InstantIRPipeline, LCM_LORA_MODULES, PREVIE
 
 from huggingface_hub import hf_hub_download
 
-hf_hub_download(repo_id="InstantX/InstantIR", filename="adapter.pt", local_dir="./checkpoints")
-hf_hub_download(repo_id="InstantX/InstantIR", filename="aggregator.pt", local_dir="./checkpoints")
-hf_hub_download(repo_id="InstantX/InstantIR", filename="previewer_lora_weights.bin", local_dir="./checkpoints")
+if not os.path.exists("checkpoints/adapter.pt"):
+    hf_hub_download(repo_id="InstantX/InstantIR", filename="adapter.pt", local_dir="./checkpoints")
+if not os.path.exists("checkpoints/aggregator.pt"):
+    hf_hub_download(repo_id="InstantX/InstantIR", filename="aggregator.pt", local_dir="./checkpoints")
+if not os.path.exists("checkpoints/previewer_lora_weights.bin"):
+    hf_hub_download(repo_id="InstantX/InstantIR", filename="previewer_lora_weights.bin", local_dir="./checkpoints")
 
 
 transform = transforms.Compose([
