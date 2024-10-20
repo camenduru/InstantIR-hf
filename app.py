@@ -1,5 +1,5 @@
 import os
-print(os.listdir('.'))
+print(os.listdir("InstantX/InstantIR"))
 import torch
 import random
 import numpy as np
@@ -31,7 +31,7 @@ transform = transforms.Compose([
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 sdxl_repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
-instantir_repo_id = "instantx/instantir"
+instantir_repo_id = "InstantX/InstantIR"
 dinov2_repo_id = "facebook/dinov2-large"
 
 if torch.cuda.is_available():
