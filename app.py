@@ -1,5 +1,4 @@
 import os
-print(os.listdir("InstantX/InstantIR"))
 import torch
 import random
 import numpy as np
