@@ -1,3 +1,5 @@
+import os
+print(os.listdir('.'))
 import torch
 import random
 import numpy as np
