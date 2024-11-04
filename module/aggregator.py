@@ -1,16 +1,3 @@
-# Copyright 2024 The HuggingFace Team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -19,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.loaders import FromOriginalControlNetMixin
+from diffusers.loaders.single_file_model import FromOriginalModelMixin
 from diffusers.utils import BaseOutput, logging
 from diffusers.models.attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
@@ -168,7 +155,7 @@ class ConditioningEmbedding(nn.Module):
         return embedding
 
 
-class Aggregator(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
+class Aggregator(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     """
     Aggregator model.
 
@@ -781,7 +768,6 @@ class Aggregator(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
         attention_mask: Optional[torch.Tensor] = None,
         added_cond_kwargs: Optional[Dict[str, torch.Tensor]] = None,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-        guess_mode: bool = False,
         return_dict: bool = True,
     ) -> Union[AggregatorOutput, Tuple[Tuple[torch.FloatTensor, ...], torch.FloatTensor]]:
         """
@@ -812,9 +798,6 @@ class Aggregator(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
                 Additional conditions for the Stable Diffusion XL UNet.
             cross_attention_kwargs (`dict[str]`, *optional*, defaults to `None`):
                 A kwargs dictionary that if specified is passed along to the `AttnProcessor`.
-            guess_mode (`bool`, defaults to `False`):
-                In this mode, the ControlNet encoder tries its best to recognize the input content of the input even if
-                you remove all prompts. A `guidance_scale` between 3.0 and 5.0 is recommended.
             return_dict (`bool`, defaults to `True`):
                 Whether or not to return a [`~models.controlnet.ControlNetOutput`] instead of a plain tuple.
 
@@ -977,14 +960,8 @@ class Aggregator(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
         mid_block_res_sample = self.controlnet_mid_block((cond_latent, ref_latent), )
 
         # 6. scaling
-        if guess_mode and not self.config.global_pool_conditions:
-            scales = torch.logspace(-1, 0, len(down_block_res_samples) + 1, device=sample.device)  # 0.1 to 1.0
-            scales = scales * conditioning_scale
-            down_block_res_samples = [sample*scale for sample, scale in zip(down_block_res_samples, scales)]
-            mid_block_res_sample = mid_block_res_sample*scales[-1]  # last scale
-        else:
-            down_block_res_samples = [sample*conditioning_scale for sample in down_block_res_samples]
-            mid_block_res_sample = mid_block_res_sample*conditioning_scale
+        down_block_res_samples = [sample*conditioning_scale for sample in down_block_res_samples]
+        mid_block_res_sample = mid_block_res_sample*conditioning_scale
 
         if self.config.global_pool_conditions:
             down_block_res_samples = [
