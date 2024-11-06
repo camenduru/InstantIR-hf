@@ -139,7 +139,7 @@ def instantir_restore(
         preview_start = preview_start / steps
     elif preview_start > 1.0:
         preview_start = preview_start / steps
-    print(type(lq))
+    print(lq)
     lq = Image.open(lq)
     lq = [resize_img(lq.convert("RGB"), size=(width, height))]
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -261,4 +261,4 @@ with gr.Blocks() as demo:
     ```
     """)
 
-demo.queue().launch()
+demo.queue().launch(debug=True)
