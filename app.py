@@ -7,6 +7,7 @@ import gradio as gr
 from PIL import Image
 
 from diffusers import DDPMScheduler
+from diffusers.utils import load_image
 from schedulers.lcm_single_step_scheduler import LCMSingleStepScheduler
 
 from module.ip_adapter.utils import load_adapter_to_pipe
@@ -140,7 +141,8 @@ def instantir_restore(
     elif preview_start > 1.0:
         preview_start = preview_start / steps
     print(lq)
-    lq = Image.open(lq)
+    lq = load_image(lq)
+    print(type(lq))
     lq = [resize_img(lq.convert("RGB"), size=(width, height))]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
@@ -168,12 +170,6 @@ def instantir_restore(
     for i, preview_img in enumerate(out[1]):
         preview_img.append(f"preview_{i}")
     return out[0][0], out[1]
-
-examples = [
-    "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
-    "An astronaut riding a green horse",
-    "A delicious ceviche cheesecake slice",
-]
 
 css="""
 #col-container {
