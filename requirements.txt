@@ -1,5 +1,6 @@
-diffusers
+diffusers==0.28.1
 pillow
+spaces
 accelerate==0.25.0
 datasets==2.19.1
 einops==0.8.0

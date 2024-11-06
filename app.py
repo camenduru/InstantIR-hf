@@ -1,7 +1,9 @@
 import os
 import torch
+import spaces
+
 import numpy as np
-import app as gr
+import gradio as gr
 from PIL import Image
 
 from diffusers import DDPMScheduler
@@ -11,6 +13,31 @@ from module.ip_adapter.utils import load_adapter_to_pipe
 from pipelines.sdxl_instantir import InstantIRPipeline
 
 from huggingface_hub import hf_hub_download
+
+
+def resize_img(input_image, max_side=1280, min_side=1024, size=None, 
+               pad_to_max_side=False, mode=Image.BILINEAR, base_pixel_number=64):
+
+    w, h = input_image.size
+    if size is not None:
+        w_resize_new, h_resize_new = size
+    else:
+        # ratio = min_side / min(h, w)
+        # w, h = round(ratio*w), round(ratio*h)
+        ratio = max_side / max(h, w)
+        input_image = input_image.resize([round(ratio*w), round(ratio*h)], mode)
+        w_resize_new = (round(ratio * w) // base_pixel_number) * base_pixel_number
+        h_resize_new = (round(ratio * h) // base_pixel_number) * base_pixel_number
+    input_image = input_image.resize([w_resize_new, h_resize_new], mode)
+
+    if pad_to_max_side:
+        res = np.ones([max_side, max_side, 3], dtype=np.uint8) * 255
+        offset_x = (max_side - w_resize_new) // 2
+        offset_y = (max_side - h_resize_new) // 2
+        res[offset_y:offset_y+h_resize_new, offset_x:offset_x+w_resize_new] = np.array(input_image)
+        input_image = Image.fromarray(res)
+    return input_image
+
 
 if not os.path.exists("models/adapter.pt"):
     hf_hub_download(repo_id="InstantX/InstantIR", filename="models/adapter.pt", local_dir=".")
@@ -22,6 +49,7 @@ if not os.path.exists("models/previewer_lora_weights.bin"):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 sdxl_repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 dinov2_repo_id = "facebook/dinov2-large"
+lcm_repo_id = "latent-consistency/lcm-lora-sdxl"
 
 if torch.cuda.is_available():
     torch_dtype = torch.float16
@@ -29,7 +57,7 @@ else:
     torch_dtype = torch.float32
 
 # Load pretrained models.
-print("Loading SDXL...")
+print("Initializing pipeline...")
 pipe = InstantIRPipeline.from_pretrained(
     sdxl_repo_id,
     torch_dtype=torch_dtype,
@@ -46,7 +74,7 @@ load_adapter_to_pipe(
 # Prepare previewer
 lora_alpha = pipe.prepare_previewers("models")
 print(f"use lora alpha {lora_alpha}")
-lora_alpha = pipe.prepare_previewers("latent-consistency/lcm-lora-sdxl", use_lcm=True)
+lora_alpha = pipe.prepare_previewers(lcm_repo_id, use_lcm=True)
 print(f"use lora alpha {lora_alpha}")
 pipe.to(device=device, dtype=torch_dtype)
 pipe.scheduler = DDPMScheduler.from_pretrained(sdxl_repo_id, subfolder="scheduler")
@@ -63,7 +91,7 @@ aggregator_state_dict = torch.load(
     "models/aggregator.pt",
     map_location="cpu"
 )
-pipe.aggregator.load_state_dict(aggregator_state_dict, strict=True)
+pipe.aggregator.load_state_dict(aggregator_state_dict)
 pipe.aggregator.to(device=device, dtype=torch_dtype)
 
 MAX_SEED = np.iinfo(np.int32).max
@@ -92,8 +120,7 @@ def dynamic_guidance_slider(sampling_steps):
 def show_final_preview(preview_row):
     return preview_row[-1][0]
 
-# @spaces.GPU #[uncomment to use ZeroGPU]
-@torch.no_grad()
+@spaces.GPU
 def instantir_restore(
     lq, prompt="", steps=30, cfg_scale=7.0, guidance_end=1.0,
     creative_restoration=False, seed=3407, height=1024, width=1024, preview_start=0.0):
@@ -101,12 +128,16 @@ def instantir_restore(
         if "lcm" not in pipe.unet.active_adapters():
             pipe.unet.set_adapter('lcm')
     else:
-        if "default" not in pipe.unet.active_adapters():
-            pipe.unet.set_adapter('default')
+        if "previewer" not in pipe.unet.active_adapters():
+            pipe.unet.set_adapter('previewer')
 
     if isinstance(guidance_end, int):
         guidance_end = guidance_end / steps
+    elif guidance_end > 1.0:
+        guidance_end = guidance_end / steps
     if isinstance(preview_start, int):
+        preview_start = preview_start / steps
+    elif preview_start > 1.0:
         preview_start = preview_start / steps
     lq = [resize_img(lq.convert("RGB"), size=(width, height))]
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -114,7 +145,6 @@ def instantir_restore(
         i * (1000//steps) + pipe.scheduler.config.steps_offset for i in range(0, steps)
     ]
     timesteps = timesteps[::-1]
-    start_timestep = timesteps[0]
 
     prompt = PROMPT if len(prompt)==0 else prompt
     neg_prompt = NEG_PROMPT
