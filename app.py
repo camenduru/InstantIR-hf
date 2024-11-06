@@ -139,6 +139,7 @@ def instantir_restore(
         preview_start = preview_start / steps
     elif preview_start > 1.0:
         preview_start = preview_start / steps
+    lq = Image.open(lq)
     lq = [resize_img(lq.convert("RGB"), size=(width, height))]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
@@ -193,7 +194,7 @@ with gr.Blocks() as demo:
     3. Click `InstantIR magic!`.
     """)
     with gr.Row():
-        lq_img = gr.Image(label="Low-quality image", type="pil")
+        lq_img = gr.Image(label="Low-quality image", type="filepath")
         with gr.Column():
             with gr.Row():
                 steps = gr.Number(label="Steps", value=30, step=1)
@@ -205,7 +206,7 @@ with gr.Blocks() as demo:
             # guidance_start = gr.Slider(label="Guidance Start", value=1.0, minimum=0.0, maximum=1.0, step=0.05)
             guidance_end = gr.Slider(label="Start Free Rendering", value=30, minimum=0, maximum=30, step=1)
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
-            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
+            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="", value="")
             mode = gr.Checkbox(label="Creative Restoration", value=False)
     with gr.Row():
         with gr.Row():
@@ -213,8 +214,8 @@ with gr.Blocks() as demo:
             clear_btn = gr.ClearButton()
         index = gr.Slider(label="Restoration Previews", value=29, minimum=0, maximum=29, step=1)
     with gr.Row():
-        output = gr.Image(label="InstantIR restored", type="pil")
-        preview = gr.Image(label="Preview", type="pil")
+        output = gr.Image(label="InstantIR restored", type="filepath")
+        preview = gr.Image(label="Preview", type="filepath")
     pipe_out = gr.Gallery(visible=False)
     clear_btn.add([lq_img, output, preview])
     restore_btn.click(
