@@ -1,5 +1,4 @@
 import os
-print(os.listdir('examples'))
 
 import random
 import torch
@@ -8,7 +7,6 @@ import spaces
 import numpy as np
 import gradio as gr
 from PIL import Image
-Image.open("examples/wukong.png")
 
 from diffusers import DDPMScheduler
 from schedulers.lcm_single_step_scheduler import LCMSingleStepScheduler
@@ -131,8 +129,8 @@ def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
 def unpack_pipe_out(preview_row, index):
     return preview_row[index][0]
 
-def dynamic_preview_slider(sampling_steps):
-    return gr.Slider(label="Restoration Previews", value=sampling_steps-1, minimum=0, maximum=sampling_steps-1, step=1)
+def dynamic_preview_slider(preview_row):
+    return gr.Slider(label="Restoration Previews", value=len(preview_row)-1, minimum=0, maximum=len(preview_row)-1, step=1)
 
 def dynamic_guidance_slider(sampling_steps):
     return gr.Slider(label="Start Free Rendering", value=sampling_steps, minimum=0, maximum=sampling_steps, step=1)
@@ -206,8 +204,8 @@ with gr.Blocks() as demo:
     ### **InstantIR can not only help you restore your broken image, but also capable of imaginative re-creation following your text prompts. See advance usage for more details!**
     ## Basic usage: revitalize your image
     1. Upload an image you want to restore;
-    2. By default InstantIR will restore your image at original size, you can change output size by setting `Height` and `Width` according to your requirements;
-    3. Optionally, tune the `Steps` `CFG Scale` parameters. Typically higher steps lead to better results, but less than 50 is recommended for efficiency;
+    2. By default InstantIR will restore your image at original size, you can change output size by setting `Height` and `Width`, and set to `0` to keep original size;
+    3. Optionally, tune the `Steps` `CFG Scale` parameters. Typically higher steps lead to better results. We recommend values between 30-50 for a balanced quality and speed;
     4. Click `InstantIR magic!`.
     """)
     with gr.Row():
@@ -248,7 +246,7 @@ with gr.Blocks() as demo:
         outputs=[output, pipe_out], api_name="InstantIR"
     )
     steps.change(dynamic_guidance_slider, inputs=steps, outputs=guidance_end)
-    output.change(dynamic_preview_slider, inputs=steps, outputs=index)
+    output.change(dynamic_preview_slider, inputs=pipe_out, outputs=index)
     index.release(unpack_pipe_out, inputs=[pipe_out, index], outputs=preview)
     output.change(show_final_preview, inputs=pipe_out, outputs=preview)
     gr.Markdown(
@@ -261,6 +259,8 @@ with gr.Blocks() as demo:
     1. Check the `Creative Restoration` checkbox;
     2. Input your text prompts in the `Restoration prompts` textbox;
     3. Set `Start Free Rendering` slider to a medium value (around half of the `steps`) to provide adequate room for InstantIR creation.
+    ### Fidelity enhancement:
+    If you find the output deviate from the original input, try to slightly increase `Preview Start`. To ensure quality, we recommend not exceeding half of `steps`.
     """)
     gr.Markdown(
     """
