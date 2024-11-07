@@ -1,8 +1,5 @@
 import os
-import sys
-print(os.path.dirname(__file__))
-print(os.listdir(os.path.dirname(__file__)))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+print(os.listdir('examples'))
 
 import random
 import torch
@@ -11,6 +8,7 @@ import spaces
 import numpy as np
 import gradio as gr
 from PIL import Image
+Image.open("examples/wukong.png")
 
 from diffusers import DDPMScheduler
 from schedulers.lcm_single_step_scheduler import LCMSingleStepScheduler
