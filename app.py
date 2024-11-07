@@ -158,6 +158,7 @@ def instantir_restore(
         preview_start = preview_start / steps
 
     lq, out_size = resize_img(lq, width=width, height=height)
+    print(out_size)
     lq = [lq]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
@@ -182,9 +183,9 @@ def instantir_restore(
         return_dict=False,
         save_preview_row=True,
     )
-    out[0][0] = out[0][0].resize(out_size[0], out_size[1], Image.BILINEAR)
+    out[0][0] = out[0][0].resize([out_size[0], out_size[1]], Image.BILINEAR)
     for i, preview_tuple in enumerate(out[1]):
-        preview_tuple[0] = preview_tuple[0].resize(out_size[0], out_size[1], Image.BILINEAR)
+        preview_tuple[0] = preview_tuple[0].resize([out_size[0], out_size[1]], Image.BILINEAR)
         preview_tuple.append(f"preview_{i}")
     return out[0][0], out[1]
 
