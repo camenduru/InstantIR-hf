@@ -224,16 +224,16 @@ with gr.Blocks() as demo:
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
             mode = gr.Checkbox(label="Creative Restoration", value=False)
             prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
+            gr.Examples(
+                examples = [
+                    "./examples/wukong.png", "./examples/lady.png", "./examples/man.png", "./examples/dog.png", "./examples/panda.png", "./examples/sculpture.png", "./examples/cottage.png", "./examples/Naruto.png", "./examples/Konan.png"
+                    ],
+                inputs = [lq_img]
+            )
         with gr.Column():
             output = gr.Image(label="InstantIR restored", type="pil")
             index = gr.Slider(label="Restoration Previews", value=29, minimum=0, maximum=29, step=1)
             preview = gr.Image(label="Preview", type="pil")
-    gr.Examples(
-        examples = [
-            "examples/wukong.png", "examples/lady.png", "examples/man.png", "examples/dog.png", "examples/panda.png", "examples/sculpture.png", "examples/cottage.png", "examples/Naruto.png", "examples/Konan.png"
-            ],
-        inputs = [lq_img]
-    )
 
     pipe_out = gr.Gallery(visible=False)
     clear_btn.add([lq_img, output, preview])
