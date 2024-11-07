@@ -200,7 +200,7 @@ with gr.Blocks() as demo:
     gr.Markdown(
     """
     # InstantIR: Blind Image Restoration with Instant Generative Reference.
-    ### **Official 🤗 Gradio demo of [InstantIR](https://github.com/instantX-research/InstantIR)&nbsp;[![GitHub](https://img.shields.io/github/stars/instantX-research/InstantIR?style=social)](https://github.com/instantX-research/InstantIR)**
+    ### <span>**Official 🤗 Gradio demo of [InstantIR](https://github.com/instantX-research/InstantIR)&nbsp;&nbsp;[![GitHub](https://img.shields.io/github/stars/instantX-research/InstantIR?style=social)](https://github.com/instantX-research/InstantIR)**</span>
     ### **InstantIR can not only help you restore your broken image, but also capable of imaginative re-creation following your text prompts. See advance usage for more details!**
     ## Basic usage: revitalize your image
     1. Upload an image you want to restore;
