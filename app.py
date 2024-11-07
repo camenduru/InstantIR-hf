@@ -21,12 +21,12 @@ def resize_img(input_image, max_side=1024, min_side=768, width=None, height=None
 
     w, h = input_image.size
     # Prepare output size
-    if width is not None and height is not None:
+    if width > 0 and height > 0:
         out_w, out_h = width, height
-    elif width is not None:
+    elif width > 0:
         out_w = width
         out_h = round(h * width / w)
-    elif height is not None:
+    elif height > 0:
         out_h = height
         out_w = round(w * height / h)
     else:
@@ -141,10 +141,6 @@ def show_final_preview(preview_row):
 def instantir_restore(
     lq, prompt="", steps=30, cfg_scale=7.0, guidance_end=1.0,
     creative_restoration=False, seed=3407, height=None, width=None, preview_start=0.0):
-    print(type(height), type(width))
-    print(height, width)
-    print(type(prompt))
-    print(prompt)
     if creative_restoration:
         if "lcm" not in pipe.unet.active_adapters():
             pipe.unet.set_adapter('lcm')
@@ -224,8 +220,8 @@ with gr.Blocks() as demo:
                 seed = gr.Number(label="Seed", value=42, step=1)
             guidance_end = gr.Slider(label="Start Free Rendering", value=30, minimum=0, maximum=30, step=1)
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
-            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
             mode = gr.Checkbox(label="Creative Restoration", value=False)
+            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
             # gr.Examples(
             #         examples = ["assets/lady.png", "assets/man.png", "assets/dog.png", "assets/panda.png", "assets/sculpture.png", "assets/cottage.png", "assets/Naruto.png", "assets/Konan.png"],
             #         inputs = [lq_img]
