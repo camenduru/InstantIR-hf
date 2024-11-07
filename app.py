@@ -157,7 +157,8 @@ def instantir_restore(
     elif preview_start > 1.0:
         preview_start = preview_start / steps
 
-    lq, out_size = [resize_img(lq, width=width, height=height)]
+    lq, out_size = resize_img(lq, width=width, height=height)
+    lq = [lq]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
         i * (1000//steps) + pipe.scheduler.config.steps_offset for i in range(0, steps)
