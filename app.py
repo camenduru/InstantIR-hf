@@ -158,7 +158,6 @@ def instantir_restore(
         preview_start = preview_start / steps
 
     lq, out_size = resize_img(lq, width=width, height=height)
-    print(out_size)
     lq = [lq]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
@@ -204,8 +203,9 @@ with gr.Blocks() as demo:
     ### **InstantIR can not only help you restore your broken image, but also capable of imaginative re-creation following your text prompts. See advance usage for more details!**
     ## Basic usage: revitalize your image
     1. Upload an image you want to restore;
-    2. Optionally, tune the `Steps` `CFG Scale` parameters. Typically higher steps lead to better results, but less than 50 is recommended for efficiency;
-    3. Click `InstantIR magic!`.
+    2. By default InstantIR will restore your image at original size, you can change output size by setting `Height` and `Width` according to your requirements;
+    3. Optionally, tune the `Steps` `CFG Scale` parameters. Typically higher steps lead to better results, but less than 50 is recommended for efficiency;
+    4. Click `InstantIR magic!`.
     """)
     with gr.Row():
         with gr.Column():
@@ -224,14 +224,16 @@ with gr.Blocks() as demo:
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
             mode = gr.Checkbox(label="Creative Restoration", value=False)
             prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
-            # gr.Examples(
-            #         examples = ["assets/lady.png", "assets/man.png", "assets/dog.png", "assets/panda.png", "assets/sculpture.png", "assets/cottage.png", "assets/Naruto.png", "assets/Konan.png"],
-            #         inputs = [lq_img]
-            #     )
         with gr.Column():
             output = gr.Image(label="InstantIR restored", type="pil")
             index = gr.Slider(label="Restoration Previews", value=29, minimum=0, maximum=29, step=1)
             preview = gr.Image(label="Preview", type="pil")
+    gr.Examples(
+        examples = [
+            "examples/wukong.png", "examples/lady.png", "examples/man.png", "examples/dog.png", "examples/panda.png", "examples/sculpture.png", "examples/cottage.png", "examples/Naruto.png", "examples/Konan.png"
+            ],
+        inputs = [lq_img]
+    )
 
     pipe_out = gr.Gallery(visible=False)
     clear_btn.add([lq_img, output, preview])
