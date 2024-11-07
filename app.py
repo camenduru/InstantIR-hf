@@ -1,4 +1,5 @@
 import os
+import random
 import torch
 import spaces
 
@@ -7,7 +8,6 @@ import gradio as gr
 from PIL import Image
 
 from diffusers import DDPMScheduler
-from diffusers.utils import load_image
 from schedulers.lcm_single_step_scheduler import LCMSingleStepScheduler
 
 from module.ip_adapter.utils import load_adapter_to_pipe
@@ -16,19 +16,33 @@ from pipelines.sdxl_instantir import InstantIRPipeline
 from huggingface_hub import hf_hub_download
 
 
-def resize_img(input_image, max_side=1280, min_side=1024, size=None, 
+def resize_img(input_image, max_side=1024, min_side=768, width=None, height=None,
                pad_to_max_side=False, mode=Image.BILINEAR, base_pixel_number=64):
 
     w, h = input_image.size
-    if size is not None:
-        w_resize_new, h_resize_new = size
+    # Prepare output size
+    if width is not None and height is not None:
+        out_w, out_h = width, height
+    elif width is not None:
+        out_w = width
+        out_h = round(h * width / w)
+    elif height is not None:
+        out_h = height
+        out_w = round(w * height / h)
     else:
-        # ratio = min_side / min(h, w)
-        # w, h = round(ratio*w), round(ratio*h)
-        ratio = max_side / max(h, w)
-        input_image = input_image.resize([round(ratio*w), round(ratio*h)], mode)
-        w_resize_new = (round(ratio * w) // base_pixel_number) * base_pixel_number
-        h_resize_new = (round(ratio * h) // base_pixel_number) * base_pixel_number
+        out_w, out_h = w, h
+
+    # Resize input to runtime size
+    w, h = out_w, out_h
+    if min(w, h) < min_side:
+        ratio = min_side / min(w, h)
+        w, h = round(ratio * w), round(ratio * h)
+    if max(w, h) > max_side:
+        ratio = max_side / max(w, h)
+        w, h = round(ratio * w), round(ratio * h)
+    # Resize to cope with UNet and VAE operations
+    w_resize_new = (w // base_pixel_number) * base_pixel_number
+    h_resize_new = (h // base_pixel_number) * base_pixel_number
     input_image = input_image.resize([w_resize_new, h_resize_new], mode)
 
     if pad_to_max_side:
@@ -37,7 +51,7 @@ def resize_img(input_image, max_side=1280, min_side=1024, size=None,
         offset_y = (max_side - h_resize_new) // 2
         res[offset_y:offset_y+h_resize_new, offset_x:offset_x+w_resize_new] = np.array(input_image)
         input_image = Image.fromarray(res)
-    return input_image
+    return input_image, (out_w, out_h)
 
 
 if not os.path.exists("models/adapter.pt"):
@@ -52,10 +66,7 @@ sdxl_repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 dinov2_repo_id = "facebook/dinov2-large"
 lcm_repo_id = "latent-consistency/lcm-lora-sdxl"
 
-if torch.cuda.is_available():
-    torch_dtype = torch.float16
-else:
-    torch_dtype = torch.float32
+torch_dtype = torch.float16 if str(device).__contains__("cuda") else torch.float32
 
 # Load pretrained models.
 print("Initializing pipeline...")
@@ -96,7 +107,8 @@ pipe.aggregator.load_state_dict(aggregator_state_dict)
 pipe.aggregator.to(device=device, dtype=torch_dtype)
 
 MAX_SEED = np.iinfo(np.int32).max
-MAX_IMAGE_SIZE = 1024
+MAX_IMAGE_SIZE = 1280
+MIN_IMAGE_SIZE = 1024
 
 PROMPT = "Photorealistic, highly detailed, hyper detailed photo - realistic maximum detail, 32k, \
 ultra HD, extreme meticulous detailing, skin pore detailing, \
@@ -108,11 +120,15 @@ sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, \
 dirty, messy, worst quality, low quality, frames, painting, illustration, drawing, art, \
 watermark, signature, jpeg artifacts, deformed, lowres"
 
+def randomize_seed_fn(seed: int, randomize_seed: bool) -> int:
+    if randomize_seed:
+        seed = random.randint(0, MAX_SEED)
+    return seed
+
 def unpack_pipe_out(preview_row, index):
     return preview_row[index][0]
 
 def dynamic_preview_slider(sampling_steps):
-    print(sampling_steps)
     return gr.Slider(label="Restoration Previews", value=sampling_steps-1, minimum=0, maximum=sampling_steps-1, step=1)
 
 def dynamic_guidance_slider(sampling_steps):
@@ -121,10 +137,14 @@ def dynamic_guidance_slider(sampling_steps):
 def show_final_preview(preview_row):
     return preview_row[-1][0]
 
-@spaces.GPU
+@spaces.GPU(duration=70)
 def instantir_restore(
     lq, prompt="", steps=30, cfg_scale=7.0, guidance_end=1.0,
-    creative_restoration=False, seed=3407, height=1024, width=1024, preview_start=0.0):
+    creative_restoration=False, seed=3407, height=None, width=None, preview_start=0.0):
+    print(type(height), type(width))
+    print(height, width)
+    print(type(prompt))
+    print(prompt)
     if creative_restoration:
         if "lcm" not in pipe.unet.active_adapters():
             pipe.unet.set_adapter('lcm')
@@ -140,10 +160,8 @@ def instantir_restore(
         preview_start = preview_start / steps
     elif preview_start > 1.0:
         preview_start = preview_start / steps
-    print(lq)
-    lq = load_image(lq)
-    print(type(lq))
-    lq = [resize_img(lq.convert("RGB"), size=(width, height))]
+
+    lq, out_size = [resize_img(lq, width=width, height=height)]
     generator = torch.Generator(device=device).manual_seed(seed)
     timesteps = [
         i * (1000//steps) + pipe.scheduler.config.steps_offset for i in range(0, steps)
@@ -167,8 +185,10 @@ def instantir_restore(
         return_dict=False,
         save_preview_row=True,
     )
-    for i, preview_img in enumerate(out[1]):
-        preview_img.append(f"preview_{i}")
+    out[0][0] = out[0][0].resize(out_size[0], out_size[1], Image.BILINEAR)
+    for i, preview_tuple in enumerate(out[1]):
+        preview_tuple[0] = preview_tuple[0].resize(out_size[0], out_size[1], Image.BILINEAR)
+        preview_tuple.append(f"preview_{i}")
     return out[0][0], out[1]
 
 css="""
@@ -182,7 +202,6 @@ with gr.Blocks() as demo:
     gr.Markdown(
     """
     # InstantIR: Blind Image Restoration with Instant Generative Reference.
-
     ### **Official 🤗 Gradio demo of [InstantIR](https://arxiv.org/abs/2410.06551).**
     ### **InstantIR can not only help you restore your broken image, but also capable of imaginative re-creation following your text prompts. See advance usage for more details!**
     ## Basic usage: revitalize your image
@@ -191,34 +210,37 @@ with gr.Blocks() as demo:
     3. Click `InstantIR magic!`.
     """)
     with gr.Row():
-        lq_img = gr.Image(label="Low-quality image", type="filepath")
         with gr.Column():
+            lq_img = gr.Image(label="Low-quality image", type="pil")
+            with gr.Row():
+                restore_btn = gr.Button("InstantIR magic!")
+                clear_btn = gr.ClearButton()
             with gr.Row():
                 steps = gr.Number(label="Steps", value=30, step=1)
                 cfg_scale = gr.Number(label="CFG Scale", value=7.0, step=0.1)
             with gr.Row():
-                height = gr.Number(label="Height", value=1024, step=1)
-                weight = gr.Number(label="Weight", value=1024, step=1)
+                height = gr.Number(label="Height", step=1, placeholder="Auto", maximum=MAX_IMAGE_SIZE)
+                width = gr.Number(label="Width", step=1, placeholder="Auto", maximum=MAX_IMAGE_SIZE)
                 seed = gr.Number(label="Seed", value=42, step=1)
-            # guidance_start = gr.Slider(label="Guidance Start", value=1.0, minimum=0.0, maximum=1.0, step=0.05)
             guidance_end = gr.Slider(label="Start Free Rendering", value=30, minimum=0, maximum=30, step=1)
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
-            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="", value="")
+            prompt = gr.Textbox(label="Restoration prompts (Optional)", placeholder="")
             mode = gr.Checkbox(label="Creative Restoration", value=False)
-    with gr.Row():
-        with gr.Row():
-            restore_btn = gr.Button("InstantIR magic!")
-            clear_btn = gr.ClearButton()
-        index = gr.Slider(label="Restoration Previews", value=29, minimum=0, maximum=29, step=1)
-    with gr.Row():
-        output = gr.Image(label="InstantIR restored", type="filepath")
-        preview = gr.Image(label="Preview", type="filepath")
+            # gr.Examples(
+            #         examples = ["assets/lady.png", "assets/man.png", "assets/dog.png", "assets/panda.png", "assets/sculpture.png", "assets/cottage.png", "assets/Naruto.png", "assets/Konan.png"],
+            #         inputs = [lq_img]
+            #     )
+        with gr.Column():
+            output = gr.Image(label="InstantIR restored", type="pil")
+            index = gr.Slider(label="Restoration Previews", value=29, minimum=0, maximum=29, step=1)
+            preview = gr.Image(label="Preview", type="pil")
+
     pipe_out = gr.Gallery(visible=False)
     clear_btn.add([lq_img, output, preview])
     restore_btn.click(
         instantir_restore, inputs=[
             lq_img, prompt, steps, cfg_scale, guidance_end,
-            mode, seed, height, weight, preview_start,
+            mode, seed, height, width, preview_start,
         ],
         outputs=[output, pipe_out], api_name="InstantIR"
     )
@@ -236,17 +258,11 @@ with gr.Blocks() as demo:
     1. Check the `Creative Restoration` checkbox;
     2. Input your text prompts in the `Restoration prompts` textbox;
     3. Set `Start Free Rendering` slider to a medium value (around half of the `steps`) to provide adequate room for InstantIR creation.
-    
-    ## Examples
-    Here are some examplar usage of InstantIR:
     """)
-    # examples = gr.Gallery(label="Examples")
-
     gr.Markdown(
     """
     ## Citation
     If InstantIR is helpful to your work, please cite our paper via:
-
     ```
     @article{huang2024instantir,
         title={InstantIR: Blind Image Restoration with Instant Generative Reference},
@@ -257,4 +273,4 @@ with gr.Blocks() as demo:
     ```
     """)
 
-demo.queue().launch(debug=True)
+demo.queue().launch()
