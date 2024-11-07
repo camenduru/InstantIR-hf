@@ -202,7 +202,7 @@ with gr.Blocks() as demo:
     gr.Markdown(
     """
     # InstantIR: Blind Image Restoration with Instant Generative Reference.
-    ### **Official 🤗 Gradio demo of [InstantIR](https://arxiv.org/abs/2410.06551).**
+    ### **Official 🤗 Gradio demo of [InstantIR](https://github.com/instantX-research/InstantIR).**
     ### **InstantIR can not only help you restore your broken image, but also capable of imaginative re-creation following your text prompts. See advance usage for more details!**
     ## Basic usage: revitalize your image
     1. Upload an image you want to restore;
@@ -219,8 +219,8 @@ with gr.Blocks() as demo:
                 steps = gr.Number(label="Steps", value=30, step=1)
                 cfg_scale = gr.Number(label="CFG Scale", value=7.0, step=0.1)
             with gr.Row():
-                height = gr.Number(label="Height", step=1, placeholder="Auto", maximum=MAX_IMAGE_SIZE)
-                width = gr.Number(label="Width", step=1, placeholder="Auto", maximum=MAX_IMAGE_SIZE)
+                height = gr.Number(label="Height", step=1, maximum=MAX_IMAGE_SIZE)
+                width = gr.Number(label="Width", step=1, maximum=MAX_IMAGE_SIZE)
                 seed = gr.Number(label="Seed", value=42, step=1)
             guidance_end = gr.Slider(label="Start Free Rendering", value=30, minimum=0, maximum=30, step=1)
             preview_start = gr.Slider(label="Preview Start", value=0, minimum=0, maximum=30, step=1)
