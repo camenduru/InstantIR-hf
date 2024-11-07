@@ -33,3 +33,12 @@ saved_model/**/* filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
 *.zst filter=lfs diff=lfs merge=lfs -text
 *tfevents* filter=lfs diff=lfs merge=lfs -text
+examples/Konan.png filter=lfs diff=lfs merge=lfs -text
+examples/lady.png filter=lfs diff=lfs merge=lfs -text
+examples/sculpture.png filter=lfs diff=lfs merge=lfs -text
+examples/wukong.png filter=lfs diff=lfs merge=lfs -text
+examples/Naruto.png filter=lfs diff=lfs merge=lfs -text
+examples/cottage.png filter=lfs diff=lfs merge=lfs -text
+examples/dog.png filter=lfs diff=lfs merge=lfs -text
+examples/man.png filter=lfs diff=lfs merge=lfs -text
+examples/panda.png filter=lfs diff=lfs merge=lfs -text
