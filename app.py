@@ -2,7 +2,6 @@ import os
 
 import random
 import torch
-import spaces
 
 import numpy as np
 import gradio as gr
@@ -138,7 +137,6 @@ def dynamic_guidance_slider(sampling_steps):
 def show_final_preview(preview_row):
     return preview_row[-1][0]
 
-@spaces.GPU(duration=70)
 def instantir_restore(
     lq, prompt="", steps=30, cfg_scale=7.0, guidance_end=1.0,
     creative_restoration=False, seed=3407, height=None, width=None, preview_start=0.0):
